@@ -76,17 +76,16 @@ get_latest_version() {
 download_binary() {
     local binary_name="${BINARY_NAME}-${OS}-${ARCH}"
     local download_url="https://github.com/${REPO}/releases/download/${VERSION}/${binary_name}"
-    local temp_file="/tmp/${binary_name}"
+    TEMP_FILE="/tmp/${binary_name}"
     
     print_info "Downloading ${binary_name}..."
     
-    if ! curl -fsSL -o "${temp_file}" "${download_url}"; then
+    if ! curl -fsSL -o "${TEMP_FILE}" "${download_url}"; then
         print_error "Failed to download binary from ${download_url}"
         exit 1
     fi
     
     print_info "Download complete"
-    echo "${temp_file}"
 }
 
 verify_checksum() {
@@ -161,9 +160,9 @@ main() {
     detect_platform
     get_latest_version
     
-    local binary_file=$(download_binary)
-    verify_checksum "${binary_file}"
-    install_binary "${binary_file}"
+    download_binary
+    verify_checksum "${TEMP_FILE}"
+    install_binary "${TEMP_FILE}"
     verify_installation
     
     echo ""
