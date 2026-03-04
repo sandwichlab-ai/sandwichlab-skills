@@ -12,7 +12,7 @@ package main
 import (
 	"os"
 
-	"sandwichlab_core/tools/ahcli/cmd"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd"
 )
 
 func main() {

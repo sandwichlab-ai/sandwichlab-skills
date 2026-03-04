@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"sandwichlab_core/tools/ahcli/internal"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
 
 	"github.com/spf13/cobra"
 )

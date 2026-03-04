@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"sandwichlab_core/tools/ahcli/internal"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
 )
 
 // cognitoConfigs 硬编码的 Cognito 配置，按环境区分
