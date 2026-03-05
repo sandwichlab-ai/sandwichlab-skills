@@ -15,8 +15,7 @@ description: "Meta 广告端到端发布完整流程。从零创建并发布 Met
 
 ## 前提
 
-- VPN 连接到对应环境的 K8s 集群
-- `ahcli` 已编译（`cd tools/ahcli && go build -o ../../ahcli .`）
+- 已安装 `ahcli` CLI 工具（使用 `/ahcli-install` 安装）
 
 ## 用户需提供的信息
 
