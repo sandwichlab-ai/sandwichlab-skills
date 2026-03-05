@@ -62,8 +62,10 @@ detect_platform() {
 }
 
 get_latest_version() {
-    if [ -n "${AHCLI_VERSION}" ]; then
-        VERSION="${AHCLI_VERSION}"
+    # 支持环境变量或位置参数 $1 指定版本
+    local specified_version="${AHCLI_VERSION:-$1}"
+    if [ -n "${specified_version}" ]; then
+        VERSION="${specified_version}"
         print_info "Using specified version: ${VERSION}"
         return
     fi
@@ -88,6 +90,17 @@ download_binary() {
     
     if ! curl -fsSL -o "${TEMP_FILE}" "${download_url}"; then
         print_error "Failed to download binary from ${download_url}"
+        exit 1
+    fi
+
+    # 验证下载的是二进制文件而非 HTML 错误页
+    local file_type
+    file_type=$(file "${TEMP_FILE}" 2>/dev/null || echo "")
+    if echo "${file_type}" | grep -qiE "HTML|text"; then
+        print_error "Downloaded file appears to be an error page, not a binary."
+        print_error "Version '${VERSION}' may not exist. Check available releases at:"
+        print_error "https://github.com/${REPO}/releases"
+        rm -f "${TEMP_FILE}"
         exit 1
     fi
     
@@ -152,8 +165,8 @@ verify_installation() {
         exit 1
     fi
     
-    local installed_version=$(${BINARY_NAME} --version 2>&1 || echo "unknown")
-    print_info "Installed version: ${installed_version}"
+    ${BINARY_NAME} --help > /dev/null 2>&1 || true
+    print_info "Installed version: ${VERSION}"
 }
 
 main() {
@@ -164,7 +177,7 @@ main() {
     echo ""
     
     detect_platform
-    get_latest_version
+    get_latest_version "$1"
     
     download_binary
     verify_checksum "${TEMP_FILE}"

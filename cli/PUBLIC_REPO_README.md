@@ -34,7 +34,7 @@ To install a specific version, set the `AHCLI_VERSION` environment variable:
 
 **macOS / Linux:**
 ```bash
-AHCLI_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash -s v1.2.3
 ```
 
 **Windows (PowerShell):**

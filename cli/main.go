@@ -15,8 +15,11 @@ import (
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd"
 )
 
+// Version is set at build time via -ldflags "-X main.Version=vX.Y.Z"
+var Version = "dev"
+
 func main() {
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.Execute(Version); err != nil {
 		os.Exit(1)
 	}
 }

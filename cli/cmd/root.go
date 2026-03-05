@@ -15,7 +15,7 @@ import (
 
 // NewRootCmd 创建 CLI 根命令，所有子命令挂载在其下。
 // Factory 在 PersistentPreRunE 中初始化，通过 NewCmd* 函数传递给每个子命令。
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(version string) *cobra.Command {
 	f := &internal.Factory{}
 	var cfgFile string
 
@@ -53,6 +53,7 @@ func NewRootCmd() *cobra.Command {
 	rootCmd.AddCommand(NewCmdBrowser(f))
 	rootCmd.AddCommand(NewCmdOps(f))
 	rootCmd.AddCommand(NewCmdAuth(f))
+	rootCmd.AddCommand(newCmdVersion(version))
 
 	return rootCmd
 }
@@ -170,8 +171,18 @@ func initConfig(cfgFile string, verbose bool) {
 }
 
 // Execute 是 CLI 的入口函数，由 main.go 调用。
-func Execute() error {
-	return NewRootCmd().Execute()
+func Execute(version string) error {
+	return NewRootCmd(version).Execute()
+}
+
+func newCmdVersion(version string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "显示版本信息",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Println(version)
+		},
+	}
 }
 
 // splitAndTrim 将逗号分隔的字符串拆分为切片，去除空白。

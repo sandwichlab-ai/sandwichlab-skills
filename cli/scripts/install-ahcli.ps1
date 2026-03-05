@@ -55,13 +55,24 @@ function Download-Binary {
     
     try {
         Invoke-WebRequest -Uri $downloadUrl -OutFile $tempFile
-        Write-Info "Download complete"
-        return $tempFile
     }
     catch {
         Write-Error-Custom "Failed to download binary from $downloadUrl : $_"
         exit 1
     }
+
+    # 验证下载的是二进制文件而非 HTML 错误页
+    $content = Get-Content $tempFile -TotalCount 1 -ErrorAction SilentlyContinue
+    if ($content -match "<html|<!DOCTYPE") {
+        Write-Error-Custom "Downloaded file appears to be an error page, not a binary."
+        Write-Error-Custom "Version '$Version' may not exist. Check available releases at:"
+        Write-Error-Custom "https://github.com/$Repo/releases"
+        Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        exit 1
+    }
+
+    Write-Info "Download complete"
+    return $tempFile
 }
 
 function Verify-Checksum {
@@ -146,14 +157,9 @@ function Verify-Installation {
         Write-Error-Custom "$BinaryName.exe not found at $installPath"
         exit 1
     }
-    
-    try {
-        $version = & $installPath --version 2>&1
-        Write-Info "Installed version: $version"
-    }
-    catch {
-        Write-Warn "Could not verify version: $_"
-    }
+
+    & $installPath --help | Out-Null
+    Write-Info "Installed version: $Version"
 }
 
 function Main {
