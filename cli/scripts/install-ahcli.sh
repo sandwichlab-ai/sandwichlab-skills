@@ -195,4 +195,4 @@ main() {
     echo ""
 }
 
-main
+main "$@"
