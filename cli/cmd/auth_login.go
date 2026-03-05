@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
@@ -16,31 +18,159 @@ import (
 )
 
 func newCmdLogin(f *internal.Factory) *cobra.Command {
+	var direct bool
+
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "通过浏览器登录 Cognito",
-		Long: `使用 OAuth 2.0 Authorization Code Flow with PKCE 登录 Cognito。
+		Short: "通过浏览器登录",
+		Long: `打开浏览器进行登录（默认通过 HUI 前端，--direct 直接走 Cognito）。
 
-类似 'gh auth login'，会自动打开浏览器进行登录。
 登录成功后，凭证会保存在 ~/.ahcli/credentials.json。
+默认模式下，HUI 前端会同时完成登录（会话同步）。
 
 示例:
   ahcli auth login --env dev
-  ahcli auth login --env prod`,
+  ahcli auth login --env dev --direct`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return loginRun(f)
+			if direct {
+				return loginRunDirect(f)
+			}
+			return loginRunViaFrontend(f)
 		},
 	}
+
+	cmd.Flags().BoolVar(&direct, "direct", false, "直接打开 Cognito 登录（不经过前端）")
 	return cmd
 }
 
-func loginRun(f *internal.Factory) error {
+// loginRunViaFrontend 通过前端登录页完成 Cognito OAuth，同时同步前端登录状态。
+func loginRunViaFrontend(f *internal.Factory) error {
 	cognitoConfig, err := loadCognitoConfig(f.Env)
 	if err != nil {
 		return fmt.Errorf("failed to load Cognito config: %w", err)
 	}
 
+	feURL, ok := frontendURLs[f.Env]
+	if !ok {
+		fmt.Fprintf(internal.Stderr, "未知环境 %s 的前端 URL，回退到直接模式\n", f.Env)
+		return loginRunDirect(f)
+	}
+
+	port := cognitoConfig.CallbackPort
 	fmt.Fprintf(internal.Stderr, "正在登录到 %s 环境...\n", f.Env)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	// 启动本地回调服务器（等待前端传回 tokens）
+	resultChan := make(chan *internal.TokenCallbackResult, 1)
+	errChan := make(chan error, 1)
+	go func() {
+		result, cbErr := internal.StartTokenCallbackServer(ctx, port)
+		if cbErr != nil {
+			errChan <- cbErr
+			return
+		}
+		resultChan <- result
+	}()
+
+	time.Sleep(500 * time.Millisecond)
+
+	// 打开前端登录页（带 cli_port 参数）
+	loginURL := fmt.Sprintf("%s/login?cli_port=%d", feURL, port)
+	fmt.Fprintf(internal.Stderr, "\n正在打开 HUI 登录页...\n")
+	fmt.Fprintf(internal.Stderr, "请在浏览器中完成登录。如果浏览器未自动打开，请手动访问：\n%s\n\n", loginURL)
+
+	if browserErr := openBrowser(loginURL); browserErr != nil {
+		fmt.Fprintf(internal.Stderr, "警告：无法自动打开浏览器: %v\n", browserErr)
+	}
+
+	// 等待前端回调
+	var result *internal.TokenCallbackResult
+	select {
+	case result = <-resultChan:
+		fmt.Fprintf(internal.Stderr, "✓ 已收到登录凭证\n")
+	case cbErr := <-errChan:
+		return fmt.Errorf("callback server error: %w", cbErr)
+	case <-ctx.Done():
+		return fmt.Errorf("登录超时（5 分钟）")
+	}
+
+	// 解析 Cognito ID Token
+	sub, email, emailVerified, exp, provider, _, err := internal.ParseIDTokenFull(result.CognitoIDToken)
+	if err != nil {
+		return fmt.Errorf("failed to parse ID token: %w", err)
+	}
+
+	// 解析 HUI Token 的过期时间
+	huiExp := parseJWTExpiry(result.HUIToken)
+
+	creds := &internal.Credentials{
+		Environment:   f.Env,
+		IDToken:       result.CognitoIDToken,
+		TokenType:     "Bearer",
+		ExpiresAt:     exp,
+		UserID:        sub,
+		Email:         email,
+		EmailVerified: emailVerified,
+		HUIToken:      result.HUIToken,
+		HUIExpiresAt:  huiExp,
+	}
+	if saveErr := internal.SaveCredentials(creds); saveErr != nil {
+		return fmt.Errorf("登录成功但保存凭证失败: %w", saveErr)
+	}
+
+	if f.Verbose {
+		fmt.Fprintf(internal.Stderr, "[verbose] provider=%s, sub=%s\n", provider, sub)
+	}
+	opscoreUserID, err := fetchOpscoreUserID(f, result.CognitoIDToken)
+	if err != nil {
+		fmt.Fprintf(internal.Stderr, "警告：无法获取 opscore user_id: %v\n", err)
+		opscoreUserID = sub
+	}
+
+	setupDefaultTenant(email, opscoreUserID)
+
+	fmt.Fprintf(internal.Stderr, "\n✓ 登录成功！\n")
+	fmt.Fprintf(internal.Stderr, "环境: %s\n", f.Env)
+	fmt.Fprintf(internal.Stderr, "用户: %s (%s)\n", email, sub)
+	fmt.Fprintf(internal.Stderr, "✓ HUI Dashboard 已同步登录\n")
+	fmt.Fprintf(internal.Stderr, "Token 过期时间: %s\n", exp.Format(time.RFC3339))
+
+	return nil
+}
+
+// parseJWTExpiry 从 JWT token 中解析过期时间（不验证签名）
+func parseJWTExpiry(token string) time.Time {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return time.Now().Add(24 * time.Hour)
+	}
+	decoded, err := base64URLDecode(parts[1])
+	if err != nil {
+		return time.Now().Add(24 * time.Hour)
+	}
+	var claims struct {
+		Exp float64 `json:"exp"`
+	}
+	if err := json.Unmarshal(decoded, &claims); err != nil || claims.Exp == 0 {
+		return time.Now().Add(24 * time.Hour)
+	}
+	return time.Unix(int64(claims.Exp), 0)
+}
+
+func base64URLDecode(s string) ([]byte, error) {
+	return base64.RawURLEncoding.DecodeString(s)
+}
+
+// loginRunDirect 直接通过 Cognito 登录（--direct 模式）
+func loginRunDirect(f *internal.Factory) error {
+	cognitoConfig, err := loadCognitoConfig(f.Env)
+	if err != nil {
+		return fmt.Errorf("failed to load Cognito config: %w", err)
+	}
+
+	fmt.Fprintf(internal.Stderr, "正在登录到 %s 环境（直接模式）...\n", f.Env)
 	fmt.Fprintf(internal.Stderr, "User Pool: %s\n", cognitoConfig.UserPoolID)
 
 	client := internal.NewCognitoClient(cognitoConfig)
@@ -91,6 +221,9 @@ func loginRun(f *internal.Factory) error {
 	}
 
 	setupDefaultTenant(email, opscoreUserID)
+
+	// 自动获取 HUI JWT（失败仅警告，不影响 CLI 正常使用）
+	exchangeHUIToken(f, creds)
 
 	fmt.Fprintf(internal.Stderr, "\n✓ 登录成功！\n")
 	fmt.Fprintf(internal.Stderr, "环境: %s\n", f.Env)
@@ -169,6 +302,69 @@ func openBrowser(url string) error {
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 	return cmd.Start()
+}
+
+// exchangeHUIToken 使用 Cognito ID Token 换取 HUI JWT。
+// 失败仅打印警告，不影响 CLI 正常使用。
+func exchangeHUIToken(f *internal.Factory, creds *internal.Credentials) {
+	if f.URLs.HUI == "" {
+		return
+	}
+
+	reqURL := f.URLs.HUI + "/public/api/v1/token-exchange"
+	reqBody := fmt.Sprintf(`{"cognito_token":"%s"}`, creds.IDToken)
+
+	req, err := http.NewRequest(http.MethodPost, reqURL, strings.NewReader(reqBody))
+	if err != nil {
+		fmt.Fprintf(internal.Stderr, "警告：无法创建 HUI token exchange 请求: %v\n", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Fprintf(internal.Stderr, "警告：HUI token exchange 请求失败: %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Fprintf(internal.Stderr, "警告：无法读取 HUI token exchange 响应: %v\n", err)
+		return
+	}
+
+	if f.Verbose {
+		fmt.Fprintf(internal.Stderr, "[verbose] HUI token exchange: HTTP %d, body: %s\n", resp.StatusCode, string(body))
+	}
+
+	var apiResp struct {
+		Success bool `json:"success"`
+		Data    struct {
+			Token     string    `json:"token"`
+			ExpiresAt time.Time `json:"expires_at"`
+		} `json:"data"`
+		Message string `json:"message,omitempty"`
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		fmt.Fprintf(internal.Stderr, "警告：无法解析 HUI token exchange 响应: %v\n", err)
+		return
+	}
+
+	if !apiResp.Success || apiResp.Data.Token == "" {
+		fmt.Fprintf(internal.Stderr, "警告：HUI token exchange 失败: %s\n", apiResp.Message)
+		return
+	}
+
+	creds.HUIToken = apiResp.Data.Token
+	creds.HUIExpiresAt = apiResp.Data.ExpiresAt
+	if saveErr := internal.SaveCredentials(creds); saveErr != nil {
+		fmt.Fprintf(internal.Stderr, "警告：保存 HUI Token 失败: %v\n", saveErr)
+		return
+	}
+
+	fmt.Fprintf(internal.Stderr, "✓ HUI Dashboard 已授权\n")
 }
 
 // opscoreUserInfoResponse opscore /api/v1/oauth/user/info 响应结构

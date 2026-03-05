@@ -12,6 +12,7 @@ type ServiceURLs struct {
 	OpsCore    string // 运营管理服务（资产分配、Pixel 管理）
 	AuthCenter string // 认证中心（Session 管理）
 	ActionHub  string // ActionHub JSON-RPC 网关
+	HUI        string // HUI 管理后台服务
 }
 
 // envDefaults 各环境的默认服务 URL。
@@ -25,6 +26,7 @@ var envDefaults = map[string]ServiceURLs{
 		OpsCore:    "http://localhost:8088",
 		AuthCenter: "http://localhost:8080",
 		ActionHub:  "http://localhost:8085",
+		HUI:        "http://localhost:8089",
 	},
 	"dev": {
 		AdsCore:    "https://api.dev-us.sandwichlab.ai/adscore",
@@ -33,6 +35,7 @@ var envDefaults = map[string]ServiceURLs{
 		OpsCore:    "https://api.dev-us.sandwichlab.ai/opscore",
 		AuthCenter: "https://api.dev-us.sandwichlab.ai/authcenter",
 		ActionHub:  "https://api.dev-us.sandwichlab.ai/actionhub",
+		HUI:        "https://api.dev-us.sandwichlab.ai/hui",
 	},
 	"preprod": {
 		AdsCore:    "https://api.preprod-us.sandwichlab.ai/adscore",
@@ -41,6 +44,7 @@ var envDefaults = map[string]ServiceURLs{
 		OpsCore:    "https://api.preprod-us.sandwichlab.ai/opscore",
 		AuthCenter: "https://api.preprod-us.sandwichlab.ai/authcenter",
 		ActionHub:  "https://api.preprod-us.sandwichlab.ai/actionhub",
+		HUI:        "https://api.preprod-us.sandwichlab.ai/hui",
 	},
 	"prod": {
 		AdsCore:    "https://api.sandwichlab.ai/adscore",
@@ -49,6 +53,7 @@ var envDefaults = map[string]ServiceURLs{
 		OpsCore:    "https://api.sandwichlab.ai/opscore",
 		AuthCenter: "https://api.sandwichlab.ai/authcenter",
 		ActionHub:  "https://api.sandwichlab.ai/actionhub",
+		HUI:        "https://api.sandwichlab.ai/hui",
 	},
 }
 
@@ -80,6 +85,9 @@ func ResolveURLs(env string, overrides map[string]string) (*ServiceURLs, error) 
 	}
 	if v, ok := overrides["actionhub_url"]; ok && v != "" {
 		urls.ActionHub = v
+	}
+	if v, ok := overrides["hui_url"]; ok && v != "" {
+		urls.HUI = v
 	}
 
 	return &urls, nil

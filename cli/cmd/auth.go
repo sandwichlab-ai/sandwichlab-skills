@@ -29,6 +29,7 @@ func NewCmdAuth(f *internal.Factory) *cobra.Command {
 	cmd.AddCommand(NewCmdTenant(f))
 	cmd.AddCommand(newCmdAuthSwitch(f))
 	cmd.AddCommand(newCmdAuthTenants(f))
+	cmd.AddCommand(newCmdOpenDashboard(f))
 
 	return cmd
 }

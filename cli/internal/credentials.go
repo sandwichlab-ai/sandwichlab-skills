@@ -20,11 +20,18 @@ type Credentials struct {
 	UserID        string    `json:"user_id"`        // Cognito sub（用户唯一标识）
 	Email         string    `json:"email"`          // 用户邮箱
 	EmailVerified bool      `json:"email_verified"` // 邮箱是否验证
+	HUIToken      string    `json:"hui_token,omitempty"`      // HUI JWT Token（通过 token-exchange 获取）
+	HUIExpiresAt  time.Time `json:"hui_expires_at,omitempty"` // HUI Token 过期时间
 }
 
 // IsExpired 检查 ID Token 是否已过期（提前 5 分钟判断）。
 func (c *Credentials) IsExpired() bool {
 	return time.Now().Add(5 * time.Minute).After(c.ExpiresAt)
+}
+
+// IsHUITokenExpired 检查 HUI Token 是否已过期（提前 5 分钟判断）。
+func (c *Credentials) IsHUITokenExpired() bool {
+	return c.HUIToken == "" || time.Now().Add(5*time.Minute).After(c.HUIExpiresAt)
 }
 
 // credentialsPath 返回凭证文件的完整路径：~/.ahcli/credentials.json

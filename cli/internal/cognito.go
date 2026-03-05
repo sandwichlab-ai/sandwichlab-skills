@@ -358,3 +358,81 @@ func (c *CognitoClient) StartCallbackServer(ctx context.Context, expectedState s
 
 	return code, err
 }
+
+// TokenCallbackResult 前端 OAuth 回调传回的 token 结果
+type TokenCallbackResult struct {
+	HUIToken       string
+	CognitoIDToken string
+}
+
+// StartTokenCallbackServer 启动本地 HTTP 服务器，接收前端 OAuth 回调传回的 token。
+// 前端完成 Cognito OAuth 后，会跳转到 http://localhost:{port}/callback?hui_token=X&cognito_id_token=Y
+func StartTokenCallbackServer(ctx context.Context, port int) (*TokenCallbackResult, error) {
+	resultChan := make(chan *TokenCallbackResult, 1)
+	errChan := make(chan error, 1)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		huiToken := r.URL.Query().Get("hui_token")
+		cognitoIDToken := r.URL.Query().Get("cognito_id_token")
+
+		if huiToken == "" || cognitoIDToken == "" {
+			errChan <- fmt.Errorf("missing hui_token or cognito_id_token")
+			http.Error(w, "Missing tokens", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head>
+    <title>ahcli - Login Successful</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 60px 20px; background: #fafafa; }
+        .card { max-width: 400px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .success { color: #22c55e; font-size: 48px; margin-bottom: 16px; }
+        .title { font-size: 20px; font-weight: 600; color: #111; margin-bottom: 8px; }
+        .message { color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="success">&#10003;</div>
+        <div class="title">登录成功</div>
+        <div class="message">可以关闭此窗口，返回终端继续使用。</div>
+    </div>
+</body>
+</html>`)
+
+		resultChan <- &TokenCallbackResult{
+			HUIToken:       huiToken,
+			CognitoIDToken: cognitoIDToken,
+		}
+	})
+
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: mux,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- fmt.Errorf("failed to start callback server: %w", err)
+		}
+	}()
+
+	var result *TokenCallbackResult
+	var err error
+	select {
+	case result = <-resultChan:
+	case err = <-errChan:
+	case <-ctx.Done():
+		err = fmt.Errorf("callback timeout")
+	}
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	_ = server.Shutdown(shutdownCtx)
+
+	return result, err
+}
