@@ -67,7 +67,7 @@ func monitorOverviewRun(o *monitorOverviewOpts) error {
 		return err
 	}
 
-	// 非 compact 模式时在 stderr 输出人性化摘要
+	// 非 compact 模式时在 stderr 输出人性化摘要 + 项目表格
 	if !o.f.Compact {
 		var overview struct {
 			Summary struct {
@@ -77,12 +77,56 @@ func monitorOverviewRun(o *monitorOverviewOpts) error {
 				Alerting int     `json:"alerting"`
 				Spend    float64 `json:"spend_today"`
 			} `json:"summary"`
+			Projects []struct {
+				ProjectID   string  `json:"project_id"`
+				Name        string  `json:"name"`
+				Status      string  `json:"status"`
+				SpendToday  float64 `json:"spend_today"`
+				Conversions int64   `json:"conversions"`
+				CPA         float64 `json:"cpa"`
+				ROAS        float64 `json:"roas"`
+				BudgetPct   float64 `json:"budget_pct"`
+				AlertLevel  string  `json:"alert_level"`
+			} `json:"projects"`
 		}
 		if json.Unmarshal(resp.Data, &overview) == nil {
 			s := overview.Summary
-			fmt.Fprintf(internal.Stderr,
-				"项目: %d 个 (投放中 %d / 已暂停 %d / 告警 %d) | 今日花费: $%.2f\n",
-				s.Total, s.Active, s.Paused, s.Alerting, s.Spend)
+			fmt.Fprintf(internal.Stderr, "\n")
+			fmt.Fprintf(internal.Stderr, "  投放概览: %d 个项目 (投放中 %d / 已暂停 %d / 告警 %d)\n", s.Total, s.Active, s.Paused, s.Alerting)
+			fmt.Fprintf(internal.Stderr, "  今日总花费: $%.2f\n\n", s.Spend)
+
+			if len(overview.Projects) > 0 {
+				// Table header
+				fmt.Fprintf(internal.Stderr, "  %-4s %-20s %-8s %10s %6s %10s %8s %6s\n",
+					"", "项目", "状态", "花费", "转化", "CPA", "ROAS", "预算%")
+				fmt.Fprintf(internal.Stderr, "  %s\n", "────────────────────────────────────────────────────────────────────────────────")
+
+				for _, p := range overview.Projects {
+					alert := "  "
+					if p.AlertLevel == "critical" {
+						alert = "🔴"
+					} else if p.AlertLevel == "warning" {
+						alert = "🟡"
+					}
+
+					name := p.Name
+					if len(name) > 20 {
+						name = name[:17] + "..."
+					}
+
+					fmt.Fprintf(internal.Stderr, "  %-4s %-20s %-8s %10s %6d %10s %7sx %5.0f%%\n",
+						alert,
+						name,
+						p.Status,
+						fmt.Sprintf("$%.2f", p.SpendToday),
+						p.Conversions,
+						fmt.Sprintf("$%.2f", p.CPA),
+						fmt.Sprintf("%.2f", p.ROAS),
+						p.BudgetPct,
+					)
+				}
+				fmt.Fprintf(internal.Stderr, "\n")
+			}
 		}
 	}
 
@@ -244,6 +288,7 @@ func NewCmdMonitor(f *internal.Factory) *cobra.Command {
 
 子命令:
   overview    投放概览（项目列表 + 当日指标 + 告警）
+  detail      项目详情（指标 + 趋势折线图）
   alerts      仅显示告警项目
   watch       持续监控（定时轮询）
   config      告警配置管理
@@ -251,6 +296,7 @@ func NewCmdMonitor(f *internal.Factory) *cobra.Command {
 	}
 
 	cmd.AddCommand(newCmdMonitorOverview(f))
+	cmd.AddCommand(newCmdMonitorDetail(f))
 	cmd.AddCommand(newCmdMonitorAlerts(f))
 	cmd.AddCommand(newCmdMonitorWatch(f))
 	cmd.AddCommand(newCmdMonitorConfig(f))
