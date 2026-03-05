@@ -22,6 +22,28 @@ irm https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli
 ahcli auth login
 ```
 
+### Setup Skills
+
+**For Claude Desktop:**
+
+1. Clone this repository:
+```bash
+git clone https://github.com/sandwichlab-ai/sandwichlab-skills.git
+cd sandwichlab-skills
+```
+
+2. Copy skills to Claude's directory:
+```bash
+cp -r skills ~/.claude/skills/
+```
+
+3. Restart Claude Desktop to load the skills.
+
+**For development (using symbolic link):**
+```bash
+ln -s "$(pwd)/skills" ~/.claude/skills
+```
+
 ### Use Skills in Claude
 
 **Claude Code:**
@@ -39,13 +61,13 @@ ahcli auth login
 
 | Skill | Description |
 |-------|-------------|
-| **ads-adjust-budget** | 调整广告项目预算 |
-| **ads-enable** | 启用广告项目 |
-| **ads-pause** | 暂停广告项目 |
-| **ads-project-status** | 查询广告项目状态 |
-| **hui-ads-creative** | 项目素材供给 |
-| **hui-ads-launch** | Meta 广告端到端发布 |
-| **workflow-status** | 查询工作流状态 |
+| **ads-adjust-budget** | Adjust advertising project budget |
+| **ads-enable** | Enable advertising projects |
+| **ads-pause** | Pause advertising projects |
+| **ads-project-status** | Query advertising project status |
+| **hui-ads-creative** | Project creative supply |
+| **hui-ads-launch** | Meta ads end-to-end launch |
+| **workflow-status** | Query workflow status |
 
 ## 📖 Documentation
 
