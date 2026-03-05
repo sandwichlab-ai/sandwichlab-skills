@@ -31,6 +31,8 @@ jobs:
             arch: amd64
           - os: darwin
             arch: arm64
+          - os: windows
+            arch: amd64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -69,13 +71,17 @@ jobs:
             VERSION="${{ github.event.inputs.tag }}"
           fi
           
-          go build -ldflags="-s -w -X main.Version=${VERSION}" -o ahcli-${{ matrix.os }}-${{ matrix.arch }} .
+          if [ "${{ matrix.os }}" = "windows" ]; then
+            go build -ldflags="-s -w -X main.Version=${VERSION}" -o ahcli-${{ matrix.os }}-${{ matrix.arch }}.exe .
+          else
+            go build -ldflags="-s -w -X main.Version=${VERSION}" -o ahcli-${{ matrix.os }}-${{ matrix.arch }} .
+          fi
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ahcli-${{ matrix.os }}-${{ matrix.arch }}
-          path: cli/ahcli-${{ matrix.os }}-${{ matrix.arch }}
+          path: cli/ahcli-${{ matrix.os }}-${{ matrix.arch }}*
           retention-days: 1
 
   release:
@@ -95,9 +101,8 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -type f -name 'ahcli-*' -exec mv {} release/ \;
-          chmod +x release/ahcli-*
+          chmod +x release/ahcli-* || true
           
-          # Generate checksums
           cd release
           sha256sum ahcli-* > checksums.txt
           cat checksums.txt
