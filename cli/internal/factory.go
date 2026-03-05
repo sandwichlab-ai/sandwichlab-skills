@@ -51,6 +51,9 @@ func (f *Factory) BrowserClient() *Client { return f.NewClient(f.URLs.Browser) }
 // DataSyncerClient 返回 DataSyncer 服务客户端。
 func (f *Factory) DataSyncerClient() *Client { return f.NewClient(f.URLs.DataSyncer) }
 
+// HUIClient 返回 HUI 后端服务客户端。
+func (f *Factory) HUIClient() *Client { return f.NewClient(f.URLs.HUI) }
+
 // AuthClient 返回 AuthCenter 服务客户端（不注入 token/tenant，用于登录流程）。
 func (f *Factory) AuthClient() *Client { return NewClient(f.URLs.AuthCenter, f.Verbose) }
 

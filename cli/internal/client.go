@@ -294,6 +294,22 @@ func (c *Client) PostWithParams(path string, params url.Values, body io.Reader) 
 	return c.parseResponse(resp)
 }
 
+// PutWithParams 发起 PUT 请求，同时传 query params + JSON body。
+func (c *Client) PutWithParams(path string, params url.Values, body []byte) (*APIResponse, error) {
+	params = c.injectTenantToQuery(params)
+	reqURL := c.BaseURL + path
+	if len(params) > 0 {
+		reqURL += "?" + params.Encode()
+	}
+
+	var bodyReader io.Reader
+	if len(body) > 0 {
+		bodyReader = c.injectTenantToBody(strings.NewReader(string(body)))
+	}
+
+	return c.doJSON(http.MethodPut, reqURL, bodyReader)
+}
+
 // parseResponse 解析 HTTP 响应。
 // 处理逻辑：
 //  1. HTTP 4xx/5xx → 尝试解析为 APIResponse 获取结构化错误信息，否则返回原始 body
