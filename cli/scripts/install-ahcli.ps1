@@ -25,6 +25,11 @@ function Write-Error-Custom {
 }
 
 function Get-LatestVersion {
+    if ($env:AHCLI_VERSION) {
+        Write-Info "Using specified version: $($env:AHCLI_VERSION)"
+        return $env:AHCLI_VERSION
+    }
+
     Write-Info "Fetching latest version..."
     
     try {

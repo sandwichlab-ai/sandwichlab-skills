@@ -62,6 +62,12 @@ detect_platform() {
 }
 
 get_latest_version() {
+    if [ -n "${AHCLI_VERSION}" ]; then
+        VERSION="${AHCLI_VERSION}"
+        print_info "Using specified version: ${VERSION}"
+        return
+    fi
+
     print_info "Fetching latest version..."
     VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
     

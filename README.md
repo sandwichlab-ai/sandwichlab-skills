@@ -16,6 +16,32 @@ curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/m
 irm https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.ps1 | iex
 ```
 
+### Update ahcli
+
+Re-run the install command to update to the latest version:
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.ps1 | iex
+```
+
+To install a specific version, set the `AHCLI_VERSION` environment variable:
+
+**macOS / Linux:**
+```bash
+AHCLI_VERSION=v1.2.3 curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:AHCLI_VERSION="v1.2.3"; irm https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.ps1 | iex
+```
+
 ### Login
 
 ```bash

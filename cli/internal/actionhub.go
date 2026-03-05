@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 )
 
 // jsonRPCRequest 是 ActionHub JSON-RPC 请求结构
@@ -62,19 +64,31 @@ func ActionHubCall(client *Client, toolName string, arguments interface{}) (json
 	}
 
 	// 调用 ActionHub 的公共 JSON-RPC 端点
-	resp, err := client.HTTPClient.Post(
-		client.BaseURL+"/public/api/v1/mcp/jsonrpc",
-		"application/json",
-		bytes.NewReader(bodyBytes),
-	)
+	req, err := http.NewRequest(http.MethodPost, client.BaseURL+"/public/api/v1/mcp/jsonrpc", bytes.NewReader(bodyBytes))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client.injectAuth(req)
+
+	httpResp, err := client.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("ActionHub request failed: %w", err)
 	}
-	defer resp.Body.Close()
+	defer httpResp.Body.Close()
+
+	rawBody, err := io.ReadAll(httpResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if httpResp.StatusCode >= 400 {
+		return nil, fmt.Errorf("ActionHub HTTP error [%d]: %s", httpResp.StatusCode, string(rawBody))
+	}
 
 	var rpcResp jsonRPCResponse
-	if err := json.NewDecoder(resp.Body).Decode(&rpcResp); err != nil {
-		return nil, fmt.Errorf("failed to decode JSON-RPC response: %w", err)
+	if err := json.Unmarshal(rawBody, &rpcResp); err != nil {
+		return nil, fmt.Errorf("failed to decode JSON-RPC response: %w\nraw body: %s", err, string(rawBody))
 	}
 
 	if rpcResp.Error != nil {
