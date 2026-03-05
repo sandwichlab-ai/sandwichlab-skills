@@ -79,9 +79,9 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 	logVerboseState(f)
 	loadTenant(f)
 
-	// 检查登录状态（排除 auth 命令）
+	// 检查登录状态（排除 auth 和 version 命令）
 	cmdPath := cmd.CommandPath()
-	if !strings.HasPrefix(cmdPath, "ahcli auth") && f.Credentials == nil {
+	if !strings.HasPrefix(cmdPath, "ahcli auth") && cmdPath != "ahcli version" && f.Credentials == nil {
 		return fmt.Errorf("未登录，请先运行: ahcli auth login --env %s", f.Env)
 	}
 
