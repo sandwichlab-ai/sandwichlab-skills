@@ -44,7 +44,7 @@ func newCmdAuthStatus(f *internal.Factory) *cobra.Command {
 			result := map[string]interface{}{
 				"logged_in":      true,
 				"environment":    creds.Environment,
-				"user_id":        creds.UserID,
+				"sub_id":         creds.UserID,
 				"email":          creds.Email,
 				"email_verified": creds.EmailVerified,
 				"expires_at":     creds.ExpiresAt.Format(time.RFC3339),
