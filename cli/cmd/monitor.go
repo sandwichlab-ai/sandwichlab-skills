@@ -19,6 +19,7 @@ type monitorOverviewOpts struct {
 	SortBy    string
 	Search    string
 	Limit     int
+	Open      bool
 }
 
 func newCmdMonitorOverview(f *internal.Factory) *cobra.Command {
@@ -44,6 +45,7 @@ func newCmdMonitorOverview(f *internal.Factory) *cobra.Command {
 	cmd.Flags().StringVar(&o.SortBy, "sort-by", "spend", "排序字段 (spend|cpa|ctr|roas|budget_pct)")
 	cmd.Flags().StringVar(&o.Search, "search", "", "项目名称/ID 搜索")
 	cmd.Flags().IntVar(&o.Limit, "limit", 50, "返回数量")
+	cmd.Flags().BoolVar(&o.Open, "open", false, "同时在浏览器中打开盯盘页面")
 	return cmd
 }
 
@@ -128,6 +130,10 @@ func monitorOverviewRun(o *monitorOverviewOpts) error {
 				fmt.Fprintf(internal.Stderr, "\n")
 			}
 		}
+	}
+
+	if o.Open {
+		openMonitorPage(o.f, "")
 	}
 
 	return o.f.Print(resp.Data)

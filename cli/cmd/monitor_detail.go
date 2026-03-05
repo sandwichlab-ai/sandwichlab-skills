@@ -16,6 +16,7 @@ type monitorDetailOpts struct {
 	TenantID  string
 	ProjectID string
 	Days      int
+	Open      bool
 }
 
 func newCmdMonitorDetail(f *internal.Factory) *cobra.Command {
@@ -36,6 +37,7 @@ func newCmdMonitorDetail(f *internal.Factory) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&o.TenantID, "tenant-id", "", "租户 ID")
 	cmd.Flags().IntVar(&o.Days, "days", 7, "趋势天数 (1-90)")
+	cmd.Flags().BoolVar(&o.Open, "open", false, "同时在浏览器中打开盯盘页面")
 	return cmd
 }
 
@@ -143,7 +145,12 @@ func monitorDetailRun(o *monitorDetailOpts) error {
 	renderChart(points, "ROAS (x)", func(pt timeSeriesPoint) float64 { return pt.ROAS })
 	renderChart(points, "转化", func(pt timeSeriesPoint) float64 { return float64(pt.Conversions) })
 
-	// 6. JSON to stdout
+	// 6. Open browser if requested
+	if o.Open {
+		openMonitorPage(o.f, o.ProjectID)
+	}
+
+	// 7. JSON to stdout
 	return o.f.Print(overviewResp.Data)
 }
 
