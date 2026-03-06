@@ -27,6 +27,9 @@ func openMonitorPage(f *internal.Factory, projectID string) error {
 	}
 
 	target := fmt.Sprintf("%s/open/dashboard?token=%s", feURL, url.QueryEscape(creds.IDToken))
+	if f.TenantID() != "" {
+		target += "&tenant_id=" + url.QueryEscape(f.TenantID())
+	}
 	if projectID != "" {
 		target += "&project=" + url.QueryEscape(projectID)
 	}
