@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
 
@@ -76,12 +75,6 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 		return err
 	}
 
-	// 优先从环境变量加载凭证（容器/Agent 场景）
-	if loadCredentialsFromEnv(f) {
-		logVerboseState(f)
-		return nil
-	}
-
 	loadCredentials(f)
 	logVerboseState(f)
 	loadTenant(f)
@@ -93,37 +86,6 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 	}
 
 	return nil
-}
-
-// loadCredentialsFromEnv 从环境变量加载凭证（容器/Agent 场景）。
-// 当 AHCLI_TENANT_ID 和 AHCLI_USER_ID 同时设置时，跳过文件凭证和登录检查。
-func loadCredentialsFromEnv(f *internal.Factory) bool {
-	tenantID := os.Getenv("AHCLI_TENANT_ID")
-	userID := os.Getenv("AHCLI_USER_ID")
-	if tenantID == "" || userID == "" {
-		return false
-	}
-
-	if env := os.Getenv("AHCLI_ENV"); env != "" {
-		f.Env = env
-	}
-
-	f.Credentials = &internal.Credentials{
-		Environment: f.Env,
-		IDToken:     os.Getenv("AHCLI_ID_TOKEN"),
-		UserID:      userID,
-		ExpiresAt:   time.Now().Add(24 * time.Hour),
-	}
-	f.CurrentTenant = &internal.Tenant{
-		Name:     "env-injected",
-		TenantID: tenantID,
-		UserID:   userID,
-	}
-
-	if f.Verbose {
-		fmt.Fprintf(os.Stderr, "[verbose] credentials loaded from env vars (tenant=%s, user=%s)\n", tenantID, userID)
-	}
-	return true
 }
 
 // loadCredentials 加载 Cognito 凭证（静默，不影响无需认证的命令）。
