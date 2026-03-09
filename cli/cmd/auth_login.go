@@ -17,21 +17,78 @@ import (
 )
 
 func newCmdLogin(f *internal.Factory) *cobra.Command {
+	var tokenFlag string
+	var tenantIDFlag string
+	var userIDFlag string
+
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "通过浏览器登录（Cognito OAuth）",
-		Long: `打开浏览器进行 Cognito OAuth 登录。
+		Short: "通过浏览器登录（Cognito OAuth）或 Token 无头登录",
+		Long: `打开浏览器进行 Cognito OAuth 登录，或使用 --token 进行无头模式登录。
 
 登录成功后，凭证会保存在 ~/.ahcli/credentials.json。
 
 示例:
-  ahcli auth login --env dev`,
+  ahcli auth login --env dev
+  ahcli auth login --env dev --token <jwt> --tenant-id <tid> --user-id <uid>`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if tokenFlag != "" {
+				return loginWithToken(f, tokenFlag, tenantIDFlag, userIDFlag)
+			}
 			return loginRun(f)
 		},
 	}
 
+	cmd.Flags().StringVar(&tokenFlag, "token", "", "HUI JWT Token（无头模式，跳过浏览器 OAuth）")
+	cmd.Flags().StringVar(&tenantIDFlag, "tenant-id", "", "租户 ID（无头模式下使用）")
+	cmd.Flags().StringVar(&userIDFlag, "user-id", "", "用户 ID（无头模式下使用）")
+
 	return cmd
+}
+
+// loginWithToken 使用 JWT Token 进行无头登录（Agent 容器中使用）。
+func loginWithToken(f *internal.Factory, token, tenantID, userID string) error {
+	creds := &internal.Credentials{
+		Environment:   f.Env,
+		IDToken:       token,
+		AccessToken:   "",
+		RefreshToken:  "",
+		TokenType:     "Bearer",
+		ExpiresAt:     time.Now().Add(24 * time.Hour),
+		UserID:        userID,
+		Email:         "",
+		EmailVerified: true,
+		HUIToken:      token,
+		HUIExpiresAt:  time.Now().Add(24 * time.Hour),
+	}
+	if err := internal.SaveCredentials(creds); err != nil {
+		return fmt.Errorf("保存凭证失败: %w", err)
+	}
+
+	// 设置租户信息
+	if tenantID != "" {
+		tenant := internal.Tenant{
+			Name:     tenantID,
+			TenantID: tenantID,
+			UserID:   userID,
+		}
+		if err := internal.AddTenant(tenant); err != nil {
+			fmt.Fprintf(internal.Stderr, "警告：无法创建租户: %v\n", err)
+		} else {
+			_ = internal.UseTenant(tenantID)
+		}
+	}
+
+	fmt.Fprintf(internal.Stderr, "✓ Token 登录成功（无头模式）\n")
+	fmt.Fprintf(internal.Stderr, "环境: %s\n", f.Env)
+	if tenantID != "" {
+		fmt.Fprintf(internal.Stderr, "租户: %s\n", tenantID)
+	}
+	if userID != "" {
+		fmt.Fprintf(internal.Stderr, "用户: %s\n", userID)
+	}
+
+	return nil
 }
 
 // loginRun 直接通过 Cognito OAuth 登录。

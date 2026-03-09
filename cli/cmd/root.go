@@ -67,6 +67,7 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 		"opscore_url":     viper.GetString("opscore_url"),
 		"authcenter_url":  viper.GetString("authcenter_url"),
 		"actionhub_url":   viper.GetString("actionhub_url"),
+		"hui_url":         viper.GetString("hui_url"),
 	}
 
 	var err error
@@ -88,12 +89,26 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 	return nil
 }
 
-// loadCredentials 加载 Cognito 凭证（静默，不影响无需认证的命令）。
+// loadCredentials 加载凭证（支持 Cognito OAuth 和 Token 无头模式）。
 func loadCredentials(f *internal.Factory) {
 	cognitoConfig, err := loadCognitoConfig(f.Env)
 	if err != nil {
 		if f.Verbose {
 			fmt.Fprintf(os.Stderr, "[verbose] failed to load Cognito config: %v\n", err)
+		}
+		// Cognito config 不可用时，尝试直接加载已有凭证（无头模式）
+		creds, loadErr := internal.LoadCredentials()
+		if loadErr != nil {
+			if f.Verbose {
+				fmt.Fprintf(os.Stderr, "[verbose] failed to load credentials: %v\n", loadErr)
+			}
+			return
+		}
+		if creds != nil {
+			f.Credentials = creds
+			if f.Verbose {
+				fmt.Fprintf(os.Stderr, "[verbose] loaded credentials in headless mode (no Cognito config)\n")
+			}
 		}
 		return
 	}
