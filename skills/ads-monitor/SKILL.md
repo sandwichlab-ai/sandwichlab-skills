@@ -7,11 +7,7 @@ description: "广告投放盯盘，自动分析投放状态、识别异常、给
 
 自动拉取投放数据 → 识别异常 → 分析趋势 → 给出操作建议。不是简单查数，而是帮用户做判断。
 
-## 前提
-
-- 已安装 `ahcli` CLI 工具（使用 `/ahcli-install` 安装）
-
----
+`$ENV` 默认为 `dev`，可选 `preprod` / `prod`。
 
 ## 执行流程
 
@@ -21,7 +17,7 @@ description: "广告投放盯盘，自动分析投放状态、识别异常、给
 ahcli auth status --env $ENV
 ```
 
-未登录则执行登录：
+未安装 ahcli 先执行 `/ahcli-install`；未登录则执行登录：
 
 ```bash
 ahcli auth login --env $ENV

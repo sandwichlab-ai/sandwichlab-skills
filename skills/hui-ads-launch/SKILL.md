@@ -13,10 +13,6 @@ description: "Meta 广告端到端发布完整流程。从零创建并发布 Met
 - `/hui-ads-launch <产品描述或需求>` — 根据描述自动填充参数
 - `/hui-ads-launch --env preprod` — 指定环境（默认 dev）
 
-## 前提
-
-- 已安装 `ahcli` CLI 工具（使用 `/ahcli-install` 安装）
-
 ## 用户需提供的信息
 
 | 信息 | 必填 | 示例 |
@@ -46,7 +42,7 @@ description: "Meta 广告端到端发布完整流程。从零创建并发布 Met
 
 #### 0a. 登录并获取 Tenant ID
 
-先检查登录状态，未登录则执行登录：
+未安装 ahcli 先执行 `/ahcli-install`；先检查登录状态，未登录则执行登录：
 
 ```bash
 ahcli auth status --env $ENV

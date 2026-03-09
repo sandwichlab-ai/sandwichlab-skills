@@ -12,10 +12,6 @@ description: "查询指定广告项目的详细信息和运行状态，支持诊
 - `/ads-project-status <project-id>` — 查询指定项目状态
 - `/ads-project-status` — 交互式引导，输入项目 ID
 
-## 前提
-
-- 已安装 `ahcli` CLI 工具（使用 `/ahcli-install` 安装）
-
 ## 用户需提供的信息
 
 | 信息 | 必填 | 示例 |
@@ -34,7 +30,7 @@ description: "查询指定广告项目的详细信息和运行状态，支持诊
 ahcli auth status --env $ENV
 ```
 
-未登录则执行登录：
+未安装 ahcli 先执行 `/ahcli-install`；未登录则执行登录：
 
 ```bash
 ahcli auth login --env $ENV

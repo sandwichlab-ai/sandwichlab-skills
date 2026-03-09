@@ -14,10 +14,6 @@ description: "为项目批量生成并绑定广告素材（图片+文案+Creativ
 - `/hui-ads-creative <project_id> --copies-only` — 仅创建文案
 - `/hui-ads-creative <project_id> --env preprod` — 指定环境（默认 dev）
 
-## 前提
-
-- 已安装 `ahcli` CLI 工具（使用 `/ahcli-install` 安装）
-
 ## 用户需提供的信息
 
 | 信息 | 必填 | 示例 |
@@ -41,7 +37,7 @@ description: "为项目批量生成并绑定广告素材（图片+文案+Creativ
 ahcli auth status --env $ENV
 ```
 
-未登录时执行登录：
+未安装 ahcli 先执行 `/ahcli-install`；未登录时执行登录：
 
 ```bash
 ahcli auth login --env $ENV
