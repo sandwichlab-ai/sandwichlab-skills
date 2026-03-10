@@ -46,8 +46,10 @@ func newCmdMonitorWatch(f *internal.Factory) *cobra.Command {
 func monitorWatchRun(o *monitorWatchOpts) error {
 	client := o.f.HUIClient()
 	params := url.Values{
-		"tenant_id":  {o.TenantID},
-		"alert_only": {"false"},
+		"tenant_id": {o.TenantID},
+	}
+	if o.AlertOnly {
+		params.Set("alert_only", "true")
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -72,17 +74,19 @@ func monitorWatchRun(o *monitorWatchOpts) error {
 					Spend    float64 `json:"spend_today"`
 				} `json:"summary"`
 			}
-			json.Unmarshal(resp.Data, &overview)
-
-			alertCount := overview.Summary.Alerting
-
-			if o.AlertOnly && alertCount == 0 {
-				fmt.Fprintf(internal.Stderr, "[%s] #%d 无告警 (投放中 %d, 花费 $%.2f)\n",
-					now, iteration, overview.Summary.Active, overview.Summary.Spend)
+			if err := json.Unmarshal(resp.Data, &overview); err != nil {
+				fmt.Fprintf(internal.Stderr, "[%s] #%d 数据格式异常: %v\n", now, iteration, err)
 			} else {
-				fmt.Fprintf(internal.Stderr, "[%s] #%d 投放 %d / 告警 %d / 花费 $%.2f\n",
-					now, iteration, overview.Summary.Active, alertCount, overview.Summary.Spend)
-				o.f.Print(resp.Data)
+				alertCount := overview.Summary.Alerting
+
+				if o.AlertOnly && alertCount == 0 {
+					fmt.Fprintf(internal.Stderr, "[%s] #%d 无告警 (投放中 %d, 花费 $%.2f)\n",
+						now, iteration, overview.Summary.Active, overview.Summary.Spend)
+				} else {
+					fmt.Fprintf(internal.Stderr, "[%s] #%d 投放 %d / 告警 %d / 花费 $%.2f\n",
+						now, iteration, overview.Summary.Active, alertCount, overview.Summary.Spend)
+					o.f.Print(resp.Data)
+				}
 			}
 		}
 

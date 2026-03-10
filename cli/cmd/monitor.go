@@ -91,7 +91,9 @@ func monitorOverviewRun(o *monitorOverviewOpts) error {
 				AlertLevel  string  `json:"alert_level"`
 			} `json:"projects"`
 		}
-		if json.Unmarshal(resp.Data, &overview) == nil {
+		if err := json.Unmarshal(resp.Data, &overview); err != nil {
+			fmt.Fprintf(internal.Stderr, "  ⚠ 数据格式异常，无法显示摘要: %v\n", err)
+		} else {
 			s := overview.Summary
 			fmt.Fprintf(internal.Stderr, "\n")
 			fmt.Fprintf(internal.Stderr, "  投放概览: %d 个项目 (投放中 %d / 已暂停 %d / 告警 %d)\n", s.Total, s.Active, s.Paused, s.Alerting)
@@ -112,8 +114,9 @@ func monitorOverviewRun(o *monitorOverviewOpts) error {
 					}
 
 					name := p.Name
-					if len(name) > 20 {
-						name = name[:17] + "..."
+					nameRunes := []rune(name)
+					if len(nameRunes) > 20 {
+						name = string(nameRunes[:17]) + "..."
 					}
 
 					fmt.Fprintf(internal.Stderr, "  %-4s %-20s %-8s %10s %6d %10s %7sx %5.0f%%\n",

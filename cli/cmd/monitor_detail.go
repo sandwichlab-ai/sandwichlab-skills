@@ -29,6 +29,9 @@ func newCmdMonitorDetail(f *internal.Factory) *cobra.Command {
   ahcli ads monitor detail proj-xxx --days 14`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			o.ProjectID = args[0]
+			if o.Days < 1 || o.Days > 90 {
+				return fmt.Errorf("--days 必须在 1-90 之间，当前值: %d", o.Days)
+			}
 			if err := f.RequireTenantID(&o.TenantID); err != nil {
 				return err
 			}
@@ -60,7 +63,7 @@ func monitorDetailRun(o *monitorDetailOpts) error {
 	overviewParams := url.Values{
 		"tenant_id": {o.TenantID},
 		"search":    {o.ProjectID},
-		"limit":     {"1"},
+		"limit":     {"10"},
 	}
 	overviewResp, err := client.Get("/api/v1/monitor/overview", overviewParams)
 	if err != nil {
@@ -85,13 +88,42 @@ func monitorDetailRun(o *monitorDetailOpts) error {
 			AlertLevel  string  `json:"alert_level"`
 		} `json:"projects"`
 	}
-	json.Unmarshal(overviewResp.Data, &overview)
+	if err := json.Unmarshal(overviewResp.Data, &overview); err != nil {
+		return fmt.Errorf("概览数据解析失败: %w", err)
+	}
 
 	if len(overview.Projects) == 0 {
 		return fmt.Errorf("未找到项目: %s", o.ProjectID)
 	}
 
-	p := overview.Projects[0]
+	// 精确匹配 project_id，search 是模糊搜索可能返回错误项目
+	var p struct {
+		ProjectID   string  `json:"project_id"`
+		Name        string  `json:"name"`
+		Channel     string  `json:"channel"`
+		Status      string  `json:"status"`
+		DailyBudget float64 `json:"daily_budget"`
+		SpendToday  float64 `json:"spend_today"`
+		Impressions int64   `json:"impressions"`
+		Clicks      int64   `json:"clicks"`
+		Conversions int64   `json:"conversions"`
+		CTR         float64 `json:"ctr"`
+		CPA         float64 `json:"cpa"`
+		ROAS        float64 `json:"roas"`
+		BudgetPct   float64 `json:"budget_pct"`
+		AlertLevel  string  `json:"alert_level"`
+	}
+	found := false
+	for _, proj := range overview.Projects {
+		if proj.ProjectID == o.ProjectID {
+			p = proj
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("未找到精确匹配的项目: %s（搜索返回 %d 个结果）", o.ProjectID, len(overview.Projects))
+	}
 
 	// 2. Print project header
 	alertTag := ""
@@ -131,27 +163,38 @@ func monitorDetailRun(o *monitorDetailOpts) error {
 	}
 
 	var points []timeSeriesPoint
-	json.Unmarshal(metricsResp.Data, &points)
+	if err := json.Unmarshal(metricsResp.Data, &points); err != nil {
+		fmt.Fprintf(internal.Stderr, "\n  ⚠ 趋势数据解析失败: %v\n", err)
+	}
 
 	if len(points) < 2 {
 		fmt.Fprintf(internal.Stderr, "\n  趋势数据不足（需至少 2 天）\n")
-		return o.f.Print(overviewResp.Data)
 	}
 
 	// 5. Render trend charts
-	fmt.Fprintf(internal.Stderr, "\n")
-	renderChart(points, "花费 ($)", func(pt timeSeriesPoint) float64 { return pt.Spend })
-	renderChart(points, "CPA ($)", func(pt timeSeriesPoint) float64 { return pt.CPA })
-	renderChart(points, "ROAS (x)", func(pt timeSeriesPoint) float64 { return pt.ROAS })
-	renderChart(points, "转化", func(pt timeSeriesPoint) float64 { return float64(pt.Conversions) })
+	if len(points) >= 2 {
+		fmt.Fprintf(internal.Stderr, "\n")
+		renderChart(points, "花费 ($)", func(pt timeSeriesPoint) float64 { return pt.Spend })
+		renderChart(points, "CPA ($)", func(pt timeSeriesPoint) float64 { return pt.CPA })
+		renderChart(points, "ROAS (x)", func(pt timeSeriesPoint) float64 { return pt.ROAS })
+		renderChart(points, "转化", func(pt timeSeriesPoint) float64 { return float64(pt.Conversions) })
+	}
 
 	// 6. Open browser if requested
 	if o.Open {
 		openMonitorPage(o.f, o.ProjectID)
 	}
 
-	// 7. JSON to stdout
-	return o.f.Print(overviewResp.Data)
+	// 7. JSON to stdout — 合并项目快照 + 时序数据
+	detailOutput := map[string]interface{}{
+		"project":     p,
+		"time_series": points,
+	}
+	detailData, err := json.Marshal(detailOutput)
+	if err != nil {
+		return fmt.Errorf("序列化详情数据失败: %w", err)
+	}
+	return o.f.Print(json.RawMessage(detailData))
 }
 
 func renderChart(points []timeSeriesPoint, label string, extract func(timeSeriesPoint) float64) {
