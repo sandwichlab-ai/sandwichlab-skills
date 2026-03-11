@@ -32,14 +32,30 @@ ahcli --help
 **macOS / Linux:**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash
+# 先下载脚本到临时文件
+curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh -o /tmp/install-ahcli.sh
+
+# 审查脚本内容（安全起见）
+cat /tmp/install-ahcli.sh
+
+# 确认无问题后执行
+bash /tmp/install-ahcli.sh
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-irm https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.ps1 | iex
+# 先下载脚本到临时文件
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.ps1 -OutFile $env:TEMP\install-ahcli.ps1
+
+# 审查脚本内容
+Get-Content $env:TEMP\install-ahcli.ps1
+
+# 确认无问题后执行
+& $env:TEMP\install-ahcli.ps1
 ```
+
+> **安全提示：** 请勿使用 `curl ... | bash` 管道方式直接执行远程脚本。始终先下载、审查、再执行，以防供应链攻击或中间人篡改。
 
 安装脚本会自动：
 1. 检测操作系统和架构
@@ -79,7 +95,7 @@ ahcli --help
 如果提示权限错误，可能需要 sudo：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | sudo bash
+sudo bash /tmp/install-ahcli.sh
 ```
 
 **Windows:**
@@ -93,7 +109,8 @@ curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/m
 ```bash
 # 使用代理（macOS/Linux）
 export https_proxy=http://proxy.example.com:8080
-curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sandwichlab-ai/sandwichlab-skills/main/cli/scripts/install-ahcli.sh -o /tmp/install-ahcli.sh
+bash /tmp/install-ahcli.sh
 ```
 
 ### 手动安装

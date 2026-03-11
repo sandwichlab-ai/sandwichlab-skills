@@ -56,7 +56,7 @@ ahcli ads project pause $PROJECT_ID
 
 ### Step 4: 验证结果
 
-等待 2 秒后确认状态已变更：
+等待 3 秒后确认状态已变更：
 
 ```bash
 ahcli ads project get $PROJECT_ID
