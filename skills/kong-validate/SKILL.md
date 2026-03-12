@@ -91,13 +91,13 @@
 
 `platform_token_secret` 在 prod/preprod **必须**使用 Secrets Manager 引用格式，匹配正则：
 
-```
-^\$\{sm:@security:sandwichlab/infra/(prod|preprod)/kong/[^:]+:platform_token_secret\}$
+```text
+^\$\{sm:@security:sandwichlab/infra/(prod|preprod)/kong/[^:]+:platform_key\}$
 ```
 
-即必须包含：`${sm:@security:` + `sandwichlab/infra/{env}/kong/` + `{secret-name}:platform_token_secret}`
+即必须包含：`${sm:@security:` + `sandwichlab/infra/{env}/kong/` + `{secret-name}:platform_key}`
 
-示例：`${sm:@security:sandwichlab/infra/prod/kong/shoplazza:platform_token_secret}`
+示例：`${sm:@security:sandwichlab/infra/prod/kong/shoplazza:platform_key}`
 
 dev 环境可以使用硬编码测试值。
 
@@ -111,7 +111,8 @@ dev 环境可以使用硬编码测试值。
 ### 4. 输出报告
 
 输出格式：
-```
+
+```text
 ## Kong 配置验证报告
 
 ### configs/kong/prod/shoplazza-external.yaml
@@ -152,7 +153,7 @@ dev 环境可以使用硬编码测试值。
     platform_auth_issuer: "lexi-platform"
     platform_auth_jwks_url: "http://authcenter-dns.lexi2-{env}.svc:8080/.well-known/jwks.json"
     platform_token_issuer: "lexi-platform"
-    platform_token_secret: "${sm:@security:sandwichlab/infra/{env}/kong/shoplazza:platform_token_secret}"
+    platform_token_secret: "${sm:@security:sandwichlab/infra/{env}/kong/shoplazza:platform_key}"
     jwks_cache_ttl: 60      # dev: 60, preprod/prod: 300
     required_scopes: []
 
@@ -167,6 +168,7 @@ dev 环境可以使用硬编码测试值。
 ```
 
 **dev 环境特殊值**：
+
 ```yaml
 platform_auth_issuer: "http://authcenter-dns.lexi2-dev.svc:8080"
 platform_token_secret: "local-dev-jwt-secret-key-for-testing-only"  # pragma: allowlist secret
@@ -202,4 +204,6 @@ platform_token_secret: "local-dev-jwt-secret-key-for-testing-only"  # pragma: al
 - 不同环境（dev/preprod/prod）可能有不同的配置值，但结构应该一致
 - `platform_token_secret` 缺失会导致 500 错误，不是 401（这是已知的 handler.lua 行为）
 - `rate-limiting` 使用 `policy: redis` 时缺少 `redis.host` 会导致 Kong 拒绝配置（HTTP 400）
+- 修复配置问题时，使用全局搜索确认没有其他遗漏：`grep -r "关键词" configs/kong/prod/ configs/kong/preprod/`
+- dev 环境硬编码的测试 secret 必须添加 `# pragma: allowlist secret` 注释，避免 secret 扫描工具误报
 - 修改后记得触发 `Deploy Kong Configuration` workflow
