@@ -29,9 +29,11 @@ print_error() {
 }
 
 detect_platform() {
-    local os=$(uname -s | tr '[:upper:]' '[:lower:]')
-    local arch=$(uname -m)
-    
+    local os
+    os=$(uname -s | tr '[:upper:]' '[:lower:]')
+    local arch
+    arch=$(uname -m)
+
     case "$os" in
         linux*)
             OS="linux"
@@ -44,7 +46,7 @@ detect_platform() {
             exit 1
             ;;
     esac
-    
+
     case "$arch" in
         x86_64|amd64)
             ARCH="amd64"
@@ -57,7 +59,7 @@ detect_platform() {
             exit 1
             ;;
     esac
-    
+
     print_info "Detected platform: ${OS}-${ARCH}"
 }
 
@@ -72,12 +74,12 @@ get_latest_version() {
 
     print_info "Fetching latest version..."
     VERSION=$(curl -fsSL "https://api.github.com/repos/${REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    
+
     if [ -z "$VERSION" ]; then
         print_error "Failed to fetch latest version"
         exit 1
     fi
-    
+
     print_info "Latest version: ${VERSION}"
 }
 
@@ -85,9 +87,9 @@ download_binary() {
     local binary_name="${BINARY_NAME}-${OS}-${ARCH}"
     local download_url="https://github.com/${REPO}/releases/download/${VERSION}/${binary_name}"
     TEMP_FILE="/tmp/${binary_name}"
-    
+
     print_info "Downloading ${binary_name}..."
-    
+
     if ! curl -fsSL -o "${TEMP_FILE}" "${download_url}"; then
         print_error "Failed to download binary from ${download_url}"
         exit 1
@@ -103,48 +105,52 @@ download_binary() {
         rm -f "${TEMP_FILE}"
         exit 1
     fi
-    
+
     print_info "Download complete"
 }
 
 verify_checksum() {
     local binary_file="$1"
     local checksums_url="https://github.com/${REPO}/releases/download/${VERSION}/checksums.txt"
-    
+
     print_info "Verifying checksum..."
-    
+
     if ! command -v sha256sum &> /dev/null; then
         print_warn "sha256sum not found, skipping checksum verification"
         return 0
     fi
-    
-    local checksums=$(curl -fsSL "${checksums_url}")
-    local binary_name=$(basename "${binary_file}")
-    local expected_checksum=$(echo "${checksums}" | grep "${binary_name}" | awk '{print $1}')
-    
+
+    local checksums
+    checksums=$(curl -fsSL "${checksums_url}")
+    local binary_name
+    binary_name=$(basename "${binary_file}")
+    local expected_checksum
+    expected_checksum=$(echo "${checksums}" | grep "${binary_name}" | awk '{print $1}')
+
     if [ -z "${expected_checksum}" ]; then
         print_warn "Checksum not found for ${binary_name}, skipping verification"
         return 0
     fi
-    
-    local actual_checksum=$(sha256sum "${binary_file}" | awk '{print $1}')
-    
+
+    local actual_checksum
+    actual_checksum=$(sha256sum "${binary_file}" | awk '{print $1}')
+
     if [ "${expected_checksum}" != "${actual_checksum}" ]; then
         print_error "Checksum verification failed!"
         print_error "Expected: ${expected_checksum}"
         print_error "Actual:   ${actual_checksum}"
         exit 1
     fi
-    
+
     print_info "Checksum verified ✓"
 }
 
 install_binary() {
     local binary_file="$1"
     local install_path="${INSTALL_DIR}/${BINARY_NAME}"
-    
+
     print_info "Installing to ${install_path}..."
-    
+
     # Check if we need sudo
     if [ -w "${INSTALL_DIR}" ]; then
         mv "${binary_file}" "${install_path}"
@@ -154,7 +160,7 @@ install_binary() {
         sudo mv "${binary_file}" "${install_path}"
         sudo chmod +x "${install_path}"
     fi
-    
+
     print_info "Installation complete ✓"
 }
 
@@ -164,7 +170,7 @@ verify_installation() {
         print_info "Please add ${INSTALL_DIR} to your PATH"
         exit 1
     fi
-    
+
     ${BINARY_NAME} --help > /dev/null 2>&1 || true
     print_info "Installed version: ${VERSION}"
 }
@@ -175,15 +181,15 @@ main() {
     echo "║   SandwichLab ahcli Installer        ║"
     echo "╚═══════════════════════════════════════╝"
     echo ""
-    
+
     detect_platform
     get_latest_version "$1"
-    
+
     download_binary
     verify_checksum "${TEMP_FILE}"
     install_binary "${TEMP_FILE}"
     verify_installation
-    
+
     echo ""
     print_info "🎉 Installation successful!"
     echo ""

@@ -38,6 +38,7 @@ func NewCmdAds(f *internal.Factory) *cobra.Command {
 	cmd.AddCommand(NewCmdPlan(f))
 	cmd.AddCommand(NewCmdChannelMeta(f))
 	cmd.AddCommand(NewCmdMonitor(f))
+	cmd.AddCommand(NewCmdDashboard(f))
 
 	return cmd
 }
