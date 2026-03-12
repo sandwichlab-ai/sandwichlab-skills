@@ -57,6 +57,14 @@ var envDefaults = map[string]ServiceURLs{
 	},
 }
 
+// FrontendURLs 各环境前端 Dashboard URL
+var FrontendURLs = map[string]string{
+	"local":   "http://localhost:5175",
+	"dev":     "https://hui.lanbow.ai",
+	"preprod": "https://hui.lanbow.ai",
+	"prod":    "https://hui.lanbow.ai",
+}
+
 // ResolveURLs 根据环境名解析服务 URL。
 // 优先使用 overrides 中的值（来自 Viper 配置或环境变量），否则使用环境默认值。
 func ResolveURLs(env string, overrides map[string]string) (*ServiceURLs, error) {

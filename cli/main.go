@@ -1,5 +1,5 @@
-// ahcli 是 ActionHub 下游服务的直调 CLI 工具。
-// 绕过 MCP 协议，直接调用 AdsCore、DataSyncer、BrowserService 的 HTTP API，
+// ahcli 是广告服务的命令行工具。
+// 直接调用 AdsCore、DataSyncer、BrowserService、OpsCore 的 HTTP API，
 // 用于调试和脚本化场景。
 //
 // 使用示例:

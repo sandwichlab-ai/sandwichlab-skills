@@ -7,6 +7,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/ads"
+	cmdauth "github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/auth"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/browser"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/data"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/ops"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/rules"
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
 
 	"github.com/spf13/cobra"
@@ -17,6 +23,7 @@ import (
 // Factory 在 PersistentPreRunE 中初始化，通过 NewCmd* 函数传递给每个子命令。
 func NewRootCmd(version string) *cobra.Command {
 	f := &internal.Factory{}
+	internal.SetGlobalVersion(version)
 	var cfgFile string
 
 	rootCmd := &cobra.Command{
@@ -48,12 +55,12 @@ func NewRootCmd(version string) *cobra.Command {
 	})
 
 	// 注册命令树，传入 Factory
-	rootCmd.AddCommand(NewCmdAds(f))
-	rootCmd.AddCommand(NewCmdData(f))
-	rootCmd.AddCommand(NewCmdBrowser(f))
-	rootCmd.AddCommand(NewCmdOps(f))
-	rootCmd.AddCommand(NewCmdRules(f))
-	rootCmd.AddCommand(NewCmdAuth(f))
+	rootCmd.AddCommand(ads.NewCmdAds(f))
+	rootCmd.AddCommand(data.NewCmdData(f))
+	rootCmd.AddCommand(browser.NewCmdBrowser(f))
+	rootCmd.AddCommand(ops.NewCmdOps(f))
+	rootCmd.AddCommand(rules.NewCmdRules(f))
+	rootCmd.AddCommand(cmdauth.NewCmdAuth(f))
 	rootCmd.AddCommand(newCmdVersion(version))
 
 	return rootCmd
@@ -92,7 +99,7 @@ func rootPreRun(f *internal.Factory, cmd *cobra.Command) error {
 
 // loadCredentials 加载凭证（支持 Cognito OAuth 和 Token 无头模式）。
 func loadCredentials(f *internal.Factory) {
-	cognitoConfig, err := loadCognitoConfig(f.Env)
+	cognitoConfig, err := internal.LoadCognitoConfig(f.Env)
 	if err != nil {
 		if f.Verbose {
 			fmt.Fprintf(os.Stderr, "[verbose] failed to load Cognito config: %v\n", err)
@@ -199,28 +206,4 @@ func newCmdVersion(version string) *cobra.Command {
 			fmt.Println(version)
 		},
 	}
-}
-
-// splitAndTrim 将逗号分隔的字符串拆分为切片，去除空白。
-func splitAndTrim(s string) []string {
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
-// validBindActions 是 bind 命令 --action flag 的合法值。
-var validBindActions = map[string]bool{"add": true, "remove": true}
-
-// validateBindAction 校验 bind 命令的 --action 参数值。
-func validateBindAction(action string) error {
-	if !validBindActions[action] {
-		return fmt.Errorf("--action 值无效: %q（可选: add, remove）", action)
-	}
-	return nil
 }

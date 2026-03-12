@@ -10,12 +10,15 @@ import (
 	"time"
 )
 
+const clientName = "ahcli"
+
 // 全局认证信息（由 cmd/root.go 在启动时设置）
 var (
 	globalIDToken  string
 	globalTenantID string
 	globalUserID   string
 	globalVerbose  bool
+	globalVersion  string
 )
 
 // SetGlobalAuth 设置全局认证信息，由 cmd/root.go 在启动时调用。
@@ -24,6 +27,11 @@ func SetGlobalAuth(idToken, tenantID, userID string, verbose bool) {
 	globalTenantID = tenantID
 	globalUserID = userID
 	globalVerbose = verbose
+}
+
+// SetGlobalVersion 设置 CLI 版本号，用于 User-Agent header。
+func SetGlobalVersion(version string) {
+	globalVersion = version
 }
 
 // APIResponse 匹配 pkg/component/response.Response 的 JSON 结构。
@@ -82,11 +90,18 @@ func (c *Client) SetTenant(tenantID, userID string) {
 	c.UserID = userID
 }
 
-// injectAuth 为请求注入 Authorization header（如果有 IDToken）。
+// injectAuth 为请求注入 Authorization header 和客户端标识。
 func (c *Client) injectAuth(req *http.Request) {
 	if c.IDToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.IDToken)
 	}
+	// 客户端标识（Kong 插件用于区分流量来源和 per-user 指标）
+	ver := globalVersion
+	if ver == "" {
+		ver = "dev"
+	}
+	req.Header.Set("User-Agent", clientName+"/"+ver)
+	req.Header.Set("X-Client-Type", clientName)
 }
 
 // injectTenantToQuery 为 query 参数注入 tenant_id 和 user_id。
