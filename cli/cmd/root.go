@@ -13,6 +13,7 @@ import (
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/data"
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/ops"
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/rules"
+	"github.com/sandwichlab-ai/sandwichlab-skills/cli/cmd/ticket"
 	"github.com/sandwichlab-ai/sandwichlab-skills/cli/internal"
 
 	"github.com/spf13/cobra"
@@ -60,6 +61,7 @@ func NewRootCmd(version string) *cobra.Command {
 	rootCmd.AddCommand(browser.NewCmdBrowser(f))
 	rootCmd.AddCommand(ops.NewCmdOps(f))
 	rootCmd.AddCommand(rules.NewCmdRules(f))
+	rootCmd.AddCommand(ticket.NewCmdTicket(f))
 	rootCmd.AddCommand(cmdauth.NewCmdAuth(f))
 	rootCmd.AddCommand(newCmdVersion(version))
 
