@@ -24,6 +24,11 @@ func (f *Factory) idToken() string {
 	return ""
 }
 
+// HasAuth 判断当前是否有有效的 JWT token（用于区分用户模式和 Agent/无头模式）。
+func (f *Factory) HasAuth() bool {
+	return f.idToken() != ""
+}
+
 // NewClient 创建指向指定服务的 HTTP 客户端，自动注入 token 和租户信息。
 func (f *Factory) NewClient(baseURL string) *Client {
 	client := NewClient(baseURL, f.Verbose)

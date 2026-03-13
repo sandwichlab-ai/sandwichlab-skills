@@ -144,7 +144,8 @@ func ticketCreateFlagsRun(o *ticketCreateOpts) error {
 	}
 
 	client := o.f.HUIClient()
-	resp, err := client.Post("/api/v1/ticket", bytes.NewReader(bodyBytes))
+	apiPath := ticketCreateAPIPath(o.f)
+	resp, err := client.Post(apiPath, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
@@ -168,13 +169,24 @@ func ticketCreateJSONRun(o *ticketCreateOpts) error {
 	}
 
 	client := o.f.HUIClient()
-	resp, err := client.Post("/api/v1/ticket", bytes.NewReader(bodyBytes))
+	apiPath := ticketCreateAPIPath(o.f)
+	resp, err := client.Post(apiPath, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintln(internal.Stderr, "工单创建成功")
 	return o.f.Print(resp.Data)
+}
+
+// ticketCreateAPIPath 根据是否有 JWT 自动选择 API 路径。
+// 有 JWT（用户模式）→ /api/v1/ticket
+// 无 JWT（Agent/无头模式）→ /internal/api/v1/ticket
+func ticketCreateAPIPath(f *internal.Factory) string {
+	if f.HasAuth() {
+		return "/api/v1/ticket"
+	}
+	return "/internal/api/v1/ticket"
 }
 
 // ============================================================================
